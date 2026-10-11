@@ -63,6 +63,8 @@ rsync -az --delete \
   --exclude 'sub_tasks' \
   --exclude 'user_input_files' \
   --exclude 'docs' \
+  --exclude '.tmp' \
+  --exclude 'scripts/deploy.env' \
   ./ "$REMOTE:$DIR/"
 
 # The server has a runtime dependency (unpdf, for the PDF text fallback) and
