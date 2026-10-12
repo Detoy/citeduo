@@ -58,9 +58,17 @@ Alongside any path, `findConnection` returns `sharedReferences` and `sharedCiter
 
 The whole thing is one Bun process and one SQLite file (`data/app.db`, WAL, foreign keys on). No account, no cloud. `persistLearned` runs at the end of every connection search — paper stubs, `upsertCitation` for reference edges, `persistRelations` for the full edge list, all best-effort — so a graph built today makes tomorrow's search richer. `stats.source` is `'local'` or `'live'`; the panel says 来自本地缓存 or 含联网扩展, and a failed tier-1 fetch still returns a result behind an amber 上游不可用 banner. `CONNECT_LOCAL_ONLY=1`, or `live: false`, answers instantly from SQLite. Offline is not a mode bolted on; it is the first two tiers.
 
+## The rate limits live in the repo, next to their receipts
+
+Upstream politeness numbers are easy to get wrong in the direction that flatters you, so the ones this project obeys are written down where the code is. arXiv's terms ask for "no more than one request every three seconds"; `ARXIV_API_MIN_INTERVAL_MS` is 3000. S2's documentation says the introductory limit for an API key is 1 RPS on all endpoints; `S2_MIN_INTERVAL_MS` is 1000, keyed or not.
+
+Then I went looking for the number a reviewer would ask about and found that my own keyed default was 100 ms — ten requests a second against a documented one. Nothing was visibly broken: no 429s in the logs, because real usage is bursty and thin, and the calls that did go out were mostly cached. The default was simply wrong, and two instances I run had been above the published limit for as long as they had a key.
+
+I set both to 1000 ms, and the code default is moving to match, with a check that reads the value out of `config.ts` and fails CI when it drops below the number the upstream publishes. The failure mode I want covered is not malice or a flood; it is a plausible-looking constant that works in every test anyone runs. A guard that fails on a lower number is also the only way I know to keep the number honest when someone contributes a fix to the file.
+
 ## What I am not sure about
 
-Upstream rate limits shape the design more than I would like. The S2 limiter spaces calls 1000 ms apart anonymously and 100 ms with a key, and the shared pool answers a large share of requests with 429, so a batch retries three times from a 300 ms base instead of sleeping 8.4 s on an interactive request. A snowball can still hit `CONNECT_MAX_MS` mid-way and return a partial graph; `stats.truncated` flags that. A failed batch breaks the loop rather than failing the request, so with nothing cached a rate limit now surfaces as a 503 that tells you to retry, not as a fake "paper not found".
+Upstream rate limits shape the design more than I would like. The S2 limiter spaces calls 1000 ms apart — keyed or not, because a key buys 1 RPS, not ten — and the shared pool answers a large share of requests with 429, so a batch retries three times from a 300 ms base instead of sleeping 8.4 s on an interactive request. A snowball can still hit `CONNECT_MAX_MS` mid-way and return a partial graph; `stats.truncated` flags that. A failed batch breaks the loop rather than failing the request, so with nothing cached a rate limit now surfaces as a 503 that tells you to retry, not as a fake "paper not found".
 
 The answer is only as good as the upstream metadata, and this is the limit I think about most. Every path runs through reference and citation lists truncated to 40 and 25 per expansion, and coupling only counts at 2 or more shared references. If the real connective tissue is a paper whose reference list is empty upstream, no amount of local search recovers it. CiteDuo reasons over a partial public record and should say so louder.
 

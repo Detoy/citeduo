@@ -14,7 +14,7 @@ Research date: **2026-10-10**. Every rule claim below carries the URL it came fr
 | Version | first public release, v0.1.0 |
 | Author | solo developer, Chinese speaker; GitHub account since 2011, 71 public repos |
 
-> **Naming rule:** the project is **CiteDuo**. A repo rename is in progress; the old name must never appear in any post, title, hashtag, screenshot, or URL. Check screenshots and the demo page title for stale strings before posting.
+> **Naming rule:** the project is **CiteDuo**. The rename is complete; the old name must never appear in any post, title, hashtag, screenshot, or URL. Screenshots are the part that goes stale silently — the batch shot before the rename still had the old title in the header, and it was live in the README and the link-preview card. Run `python3 scripts/assets/check-assets.py` before posting: it measures the title in the pixels (no OCR) and fails if the assets predate the current name.
 
 ---
 
