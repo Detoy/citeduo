@@ -46,8 +46,7 @@ const FLOORS: Floor[] = [
   {
     name: 'Semantic Scholar anonymous',
     env: 'S2_MIN_INTERVAL_MS',
-    // Default when no API key: 1000. Keyed default (100) is a separate branch
-    // in config.ts and is checked below via the ternary parse.
+    // Both anonymous and keyed requests use a 1000 ms floor.
     floorMs: 1000,
     sourceUrl: 'https://www.semanticscholar.org/product/api',
     note: 'Anonymous shared-pool spacing used when SEMANTIC_SCHOLAR_API_KEY is unset.',
@@ -61,80 +60,74 @@ const FLOORS: Floor[] = [
   },
 ]
 
-const configPath = resolve(import.meta.dir, '..', 'server', 'config.ts')
-const source = readFileSync(configPath, 'utf8')
-
-function defaultFor(env: string): number | null {
-  // Plain: num(Bun.env.FOO, 3000)
+export function defaultFor(source: string, env: string, keyed = false): number | null {
   const plain = new RegExp(
     String.raw`num\(\s*Bun\.env\.${env}\s*,\s*(\d+)\s*\)`,
   )
   const plainMatch = source.match(plain)
   if (plainMatch) return Number(plainMatch[1])
 
-  // S2 keyed ternary: num(Bun.env.S2_MIN_INTERVAL_MS, env.semanticScholarApiKey ? 100 : 1000)
-  const ternary = new RegExp(
-    String.raw`num\(\s*Bun\.env\.${env}\s*,\s*[^?]+?\?\s*(\d+)\s*:\s*(\d+)\s*\)`,
-  )
-  const ternaryMatch = source.match(ternary)
-  if (ternaryMatch) {
-    // Return the anonymous (false-branch) default; keyed is checked separately.
-    return Number(ternaryMatch[2])
-  }
-
-  return null
+  // Only this positive condition identifies the keyed and anonymous branches.
+  // An inverted or unfamiliar condition fails closed rather than guessing.
+  if (env !== 'S2_MIN_INTERVAL_MS') return null
+  const ternary = /num\(\s*Bun\.env\.S2_MIN_INTERVAL_MS\s*,\s*env\.semanticScholarApiKey\s*\?\s*(\d+)\s*:\s*(\d+)\s*\)/
+  const match = source.match(ternary)
+  return match ? Number(match[keyed ? 1 : 2]) : null
 }
 
-function keyedS2Default(): number | null {
-  const ternary = /num\(\s*Bun\.env\.S2_MIN_INTERVAL_MS\s*,\s*[^?]+?\?\s*(\d+)\s*:\s*(\d+)\s*\)/
-  const m = source.match(ternary)
-  return m ? Number(m[1]) : null
-}
+export function checkFloors(source: string): { failures: string[]; successes: string[] } {
+  const failures: string[] = []
+  const successes: string[] = []
 
-const failures: string[] = []
-
-for (const floor of FLOORS) {
-  const actual = defaultFor(floor.env)
-  if (actual === null) {
-    failures.push(
-      `${floor.name}: could not find default for ${floor.env} in server/config.ts`,
-    )
-    continue
+  for (const floor of FLOORS) {
+    const actual = defaultFor(source, floor.env)
+    if (actual === null) {
+      failures.push(
+        `${floor.name}: could not find default for ${floor.env} in server/config.ts`,
+      )
+      continue
+    }
+    if (actual < floor.floorMs) {
+      failures.push(
+        `${floor.name}: default ${actual} ms is below published floor ${floor.floorMs} ms ` +
+          `(${floor.env}). Source: ${floor.sourceUrl}` +
+          (floor.note ? ` — ${floor.note}` : ''),
+      )
+    } else {
+      successes.push(
+        `ok  ${floor.name}: default ${actual} ms >= floor ${floor.floorMs} ms (${floor.sourceUrl})`,
+      )
+    }
   }
-  if (actual < floor.floorMs) {
+
+  // An API key starts at one request per second on all endpoints.
+  const keyed = defaultFor(source, 'S2_MIN_INTERVAL_MS', true)
+  const keyedFloor = 1000
+  if (keyed === null) {
+    failures.push('Semantic Scholar keyed: could not parse keyed default in server/config.ts')
+  } else if (keyed < keyedFloor) {
     failures.push(
-      `${floor.name}: default ${actual} ms is below published floor ${floor.floorMs} ms ` +
-        `(${floor.env}). Source: ${floor.sourceUrl}` +
-        (floor.note ? ` — ${floor.note}` : ''),
+      `Semantic Scholar keyed: default ${keyed} ms is below floor ${keyedFloor} ms ` +
+        `(S2_MIN_INTERVAL_MS with API key). Source: https://www.semanticscholar.org/product/api`,
     )
   } else {
-    console.log(
-      `ok  ${floor.name}: default ${actual} ms >= floor ${floor.floorMs} ms (${floor.sourceUrl})`,
+    successes.push(
+      `ok  Semantic Scholar keyed: default ${keyed} ms >= floor ${keyedFloor} ms ` +
+        `(https://www.semanticscholar.org/product/api)`,
     )
   }
+
+  return { failures, successes }
 }
 
-// Keyed S2 default must stay at or above 100 ms (1 req/s with a key).
-const keyed = keyedS2Default()
-const keyedFloor = 100
-if (keyed === null) {
-  failures.push('Semantic Scholar keyed: could not parse keyed default in server/config.ts')
-} else if (keyed < keyedFloor) {
-  failures.push(
-    `Semantic Scholar keyed: default ${keyed} ms is below floor ${keyedFloor} ms ` +
-      `(S2_MIN_INTERVAL_MS with API key). Source: https://www.semanticscholar.org/product/api`,
-  )
-} else {
-  console.log(
-    `ok  Semantic Scholar keyed: default ${keyed} ms >= floor ${keyedFloor} ms ` +
-      `(https://www.semanticscholar.org/product/api)`,
-  )
+if (import.meta.main) {
+  const configPath = resolve(import.meta.dir, '..', 'server', 'config.ts')
+  const { failures, successes } = checkFloors(readFileSync(configPath, 'utf8'))
+  for (const success of successes) console.log(success)
+  if (failures.length) {
+    console.error('\nPoliteness floor check failed:')
+    for (const failure of failures) console.error(`  - ${failure}`)
+    process.exit(1)
+  }
+  console.log('\nAll upstream politeness floors hold.')
 }
-
-if (failures.length) {
-  console.error('\nPoliteness floor check failed:')
-  for (const f of failures) console.error(`  - ${f}`)
-  process.exit(1)
-}
-
-console.log('\nAll upstream politeness floors hold.')

@@ -11,6 +11,8 @@ jobs:
         with: { bun-version: latest }
       - run: bun install --frozen-lockfile
       - run: bun run check:politeness
+      - run: bun run test:politeness
+      - run: bun run typecheck:politeness
       - run: bun run test:server
       - run: bunx tsc --noEmit -p server/tsconfig.json
   frontend:

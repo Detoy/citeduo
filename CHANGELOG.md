@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Semantic Scholar requests now default to 1000 ms spacing with or without an API key, matching the introductory limit of one request per second. `S2_MIN_INTERVAL_MS` overrides remain unchanged.
+
 ### Added
 
 - **Upstream politeness floors**: `bun run check:politeness` (and the CI server job) asserts that the default spacing in `server/config.ts` stays at or above each upstream's published floor (arXiv API 3 s, arXiv content 1 s project policy, S2 anonymous/keyed, OpenAlex), with source URLs in the script.
