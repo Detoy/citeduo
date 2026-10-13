@@ -42,6 +42,18 @@ describe('politeness floors', () => {
   })
   test('fails closed when a configured env variable disappears', () => {
     expect(checkFloors(fixture('1000').replace('OPENALEX_MIN_INTERVAL_MS', 'RENAMED')).failures)
-      .toEqual([expect.stringContaining('could not find default for OPENALEX_MIN_INTERVAL_MS')])
+      .toEqual([expect.stringContaining('could not determine a single default for OPENALEX_MIN_INTERVAL_MS')])
+  })
+  test.each([
+    '// previous value: num(Bun.env.S2_MIN_INTERVAL_MS, 1000)',
+    '/* num(Bun.env.S2_MIN_INTERVAL_MS, 1000) */',
+  ])('ignores a default that only appears in a comment', (comment) => {
+    const source = `${fixture('env.semanticScholarApiKey ? 100 : 1000')}\n${comment}\n`
+    expect(checkFloors(source).failures).toEqual([
+      expect.stringContaining('Semantic Scholar keyed')])
+  })
+  test('fails closed when the same default is defined twice', () => {
+    const source = `num(Bun.env.S2_MIN_INTERVAL_MS, 1000)\n${fixture('env.semanticScholarApiKey ? 100 : 1000')}`
+    expect(checkFloors(source).failures).toHaveLength(2)
   })
 })

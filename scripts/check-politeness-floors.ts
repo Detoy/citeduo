@@ -60,19 +60,37 @@ const FLOORS: Floor[] = [
   },
 ]
 
+/**
+ * Drop comments before parsing. Otherwise a commented-out or merely mentioned
+ * `num(Bun.env.X, …)` satisfies the guard while the live default is unsafe.
+ */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+}
+
 export function defaultFor(source: string, env: string, keyed = false): number | null {
+  const code = stripComments(source)
   const plain = new RegExp(
     String.raw`num\(\s*Bun\.env\.${env}\s*,\s*(\d+)\s*\)`,
+    'g',
   )
-  const plainMatch = source.match(plain)
-  if (plainMatch) return Number(plainMatch[1])
+  const plainMatches = [...code.matchAll(plain)]
 
   // Only this positive condition identifies the keyed and anonymous branches.
   // An inverted or unfamiliar condition fails closed rather than guessing.
-  if (env !== 'S2_MIN_INTERVAL_MS') return null
-  const ternary = /num\(\s*Bun\.env\.S2_MIN_INTERVAL_MS\s*,\s*env\.semanticScholarApiKey\s*\?\s*(\d+)\s*:\s*(\d+)\s*\)/
-  const match = source.match(ternary)
-  return match ? Number(match[keyed ? 1 : 2]) : null
+  const ternary = new RegExp(
+    String.raw`num\(\s*Bun\.env\.S2_MIN_INTERVAL_MS\s*,\s*env\.semanticScholarApiKey\s*\?\s*(\d+)\s*:\s*(\d+)\s*\)`,
+    'g',
+  )
+  const ternaryMatches =
+    env === 'S2_MIN_INTERVAL_MS' ? [...code.matchAll(ternary)] : []
+
+  // Two definitions of the same default are ambiguous, so refuse to pick one
+  // rather than trusting whichever happens to appear first.
+  if (plainMatches.length + ternaryMatches.length !== 1) return null
+
+  if (plainMatches.length === 1) return Number(plainMatches[0][1])
+  return Number(ternaryMatches[0][keyed ? 1 : 2])
 }
 
 export function checkFloors(source: string): { failures: string[]; successes: string[] } {
@@ -83,7 +101,7 @@ export function checkFloors(source: string): { failures: string[]; successes: st
     const actual = defaultFor(source, floor.env)
     if (actual === null) {
       failures.push(
-        `${floor.name}: could not find default for ${floor.env} in server/config.ts`,
+        `${floor.name}: could not determine a single default for ${floor.env} in server/config.ts`,
       )
       continue
     }
