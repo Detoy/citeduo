@@ -4,6 +4,7 @@ import { render, screen, act } from '@testing-library/react'
 import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom'
 import { useUrlSync } from './useUrlSync'
 import { useUiStore } from '../store/useUiStore'
+import { parseUrlState } from '../graph/urlState'
 
 let nav: ReturnType<typeof useNavigate>
 
@@ -215,5 +216,18 @@ describe('useUrlSync', () => {
     expect(s.connectionFrom).toBeNull()
     expect(s.connectionTo).toBeNull()
     expect(screen.getByTestId('search').textContent ?? '').not.toContain('from=')
+  })
+
+  it('drops ?from/?to when the pair is forgotten, so a refresh starts clean', () => {
+    renderAt('/?from=A&to=B')
+    act(() => useUiStore.getState().clearConnectionPair())
+    const search = screen.getByTestId('search').textContent ?? ''
+    expect(search).not.toContain('from=')
+    expect(search).not.toContain('to=')
+    // The address bar is what a refresh replays, and it must hold no pair —
+    // otherwise the auto-run in the hydration effect would resurrect it.
+    const reloaded = parseUrlState(search)
+    expect(reloaded.connectionFromId).toBeNull()
+    expect(reloaded.connectionToId).toBeNull()
   })
 })

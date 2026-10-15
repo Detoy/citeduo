@@ -271,6 +271,19 @@ describe('NetworkGraph', () => {
     expect(useUiStore.getState().connection).toBeNull()
   })
 
+  it('forgets the whole pair from the node menu, so the link stops restoring it', () => {
+    useUiStore.setState({
+      connectionFrom: { id: 'a', title: 'A', citation_count: 0, authors: '', source: 'semantic_scholar' },
+      connectionTo: { id: 'b', title: 'B', citation_count: 0, authors: '', source: 'semantic_scholar' },
+    })
+    render(<NetworkGraph />)
+    fireEvent.click(screen.getByTestId('node-a-rightclick'))
+    fireEvent.click(screen.getByText('清除关联论文'))
+    const s = useUiStore.getState()
+    expect(s.connectionFrom).toBeNull()
+    expect(s.connectionTo).toBeNull()
+  })
+
   it('re-expands nodes restored from the store so a shared link keeps them', async () => {
     ;(api.networkWithPolling as ReturnType<typeof vi.fn>).mockResolvedValue({
       nodes: [

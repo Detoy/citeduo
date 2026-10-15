@@ -133,10 +133,13 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ paper, slot = 'primary' }) 
     comparePaper,
     setComparePaper,
     connection,
+    connectionFrom,
+    connectionTo,
     setConnectionFrom,
     setConnectionTo,
     setConnectionOpen,
     clearConnection,
+    clearConnectionPair,
     submitQuery,
     filters,
     graphView,
@@ -540,6 +543,10 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ paper, slot = 'primary' }) 
       if (pathActive) {
         items.push({ label: '清除关联路径', onSelect: () => clearConnection() })
       }
+      if (connectionFrom || connectionTo) {
+        // Also drops ?from/?to, otherwise a refresh brings the pair back.
+        items.push({ label: '清除关联论文', onSelect: () => clearConnectionPair() })
+      }
       if (node.url) {
         items.push({ label: '打开原文', onSelect: () => window.open(node.url, '_blank', 'noopener') })
       }
@@ -557,6 +564,9 @@ const NetworkGraph: React.FC<NetworkGraphProps> = ({ paper, slot = 'primary' }) 
       setConnectionTo,
       setConnectionOpen,
       clearConnection,
+      clearConnectionPair,
+      connectionFrom,
+      connectionTo,
       pathActive,
     ],
   )

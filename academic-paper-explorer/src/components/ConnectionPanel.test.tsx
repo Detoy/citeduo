@@ -97,6 +97,22 @@ describe('ConnectionPanel visibility', () => {
     fireEvent.click(screen.getByRole('button', { name: '关闭关联路径面板' }))
     expect(useUiStore.getState().connectionOpen).toBe(false)
   })
+
+  it('clears both endpoints and the answer from the header button', () => {
+    useUiStore.setState({
+      connectionFrom: paper('A', '论文甲'),
+      connectionTo: paper('B', '论文乙'),
+      connectionRequest: { fromId: 'A', toId: 'B' },
+      connection: connection(),
+    })
+    render(<ConnectionPanel />)
+    fireEvent.click(screen.getByRole('button', { name: '清除关联' }))
+    const s = useUiStore.getState()
+    expect(s.connectionFrom).toBeNull()
+    expect(s.connectionTo).toBeNull()
+    expect(s.connectionRequest).toBeNull()
+    expect(s.connection).toBeNull()
+  })
 })
 
 describe('ConnectionPanel endpoints', () => {

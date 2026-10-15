@@ -41,6 +41,12 @@ interface UiState {
   requestConnection: (fromId: string, toId: string) => void
   setConnection: (c: PaperConnection | null) => void
   clearConnection: () => void
+  /**
+   * Drop the whole pair, not just the answer. `clearConnection` is enough to
+   * erase a drawn path, but the endpoints live in the URL — so a refresh
+   * re-created them until this existed.
+   */
+  clearConnectionPair: () => void
   /** 列表行 / 详情面板的单篇入口：填进空槽位，两槽都满则替换终点。 */
   connectPaper: (paper: Paper, opts?: { run?: boolean }) => void
   /** 明确指定一对论文并打开面板（对比分屏的入口）。 */
@@ -111,12 +117,27 @@ export const useUiStore = create<UiState>((set, get) => ({
   connectionRequest: null,
   connection: null,
   setConnectionOpen: (open) => set({ connectionOpen: open }),
-  setConnectionFrom: (p) => set({ connectionFrom: p }),
-  setConnectionTo: (p) => set({ connectionTo: p }),
+  // An endpoint change invalidates the pair the last answer described, so the
+  // stale path never sits under the new names. Re-applying the same key (e.g.
+  // the URL sync hydrating an unchanged pair) is a no-op and keeps the answer.
+  setConnectionFrom: (p) =>
+    set((s) =>
+      resolvePaperKey(s.connectionFrom) === resolvePaperKey(p)
+        ? {}
+        : { connectionFrom: p, connectionRequest: null, connection: null },
+    ),
+  setConnectionTo: (p) =>
+    set((s) =>
+      resolvePaperKey(s.connectionTo) === resolvePaperKey(p)
+        ? {}
+        : { connectionTo: p, connectionRequest: null, connection: null },
+    ),
   requestConnection: (fromId, toId) =>
     set({ connectionOpen: true, connectionRequest: { fromId, toId }, connection: null }),
   setConnection: (c) => set({ connection: c }),
   clearConnection: () => set({ connectionRequest: null, connection: null }),
+  clearConnectionPair: () =>
+    set({ connectionFrom: null, connectionTo: null, connectionRequest: null, connection: null }),
   connectPaper: (paper, opts) => {
     const key = resolvePaperKey(paper)
     if (!key) return

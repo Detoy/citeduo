@@ -204,4 +204,38 @@ describe('useUiStore connection state', () => {
     expect(s.connection).toBeNull()
     expect(s.connectionOpen).toBe(true)
   })
+
+  it('drops the previous answer when an endpoint changes, so no stale path lingers', () => {
+    useUiStore.getState().requestConnection('A', 'B')
+    useUiStore.getState().setConnection(connection)
+    useUiStore.getState().setConnectionTo(paper('C'))
+    const s = useUiStore.getState()
+    expect(s.connectionTo?.id).toBe('C')
+    expect(s.connectionRequest).toBeNull()
+    expect(s.connection).toBeNull()
+  })
+
+  it('keeps a shown answer when the same endpoint is re-applied', () => {
+    useUiStore.getState().setConnectionFrom(paper('A'))
+    useUiStore.getState().setConnectionTo(paper('B'))
+    useUiStore.getState().requestConnection('A', 'B')
+    useUiStore.getState().setConnection(connection)
+    // The URL sync re-applies A|B on an unrelated navigation; the keys did not move.
+    useUiStore.getState().setConnectionFrom({ ...paper('A'), title: 'A 的新标题' })
+    useUiStore.getState().setConnectionTo(paper('B'))
+    const s = useUiStore.getState()
+    expect(s.connectionRequest).toEqual({ fromId: 'A', toId: 'B' })
+    expect(s.connection).toBe(connection)
+  })
+
+  it('forgets the whole pair, which is what removes ?from/?to from the link', () => {
+    useUiStore.getState().connectPair(paper('A'), paper('B'), { run: true })
+    useUiStore.getState().setConnection(connection)
+    useUiStore.getState().clearConnectionPair()
+    const s = useUiStore.getState()
+    expect(s.connectionFrom).toBeNull()
+    expect(s.connectionTo).toBeNull()
+    expect(s.connectionRequest).toBeNull()
+    expect(s.connection).toBeNull()
+  })
 })

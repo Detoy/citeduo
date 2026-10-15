@@ -7,6 +7,7 @@ import {
   Loader2,
   Network,
   Search,
+  Trash2,
   X,
 } from 'lucide-react'
 import { useUiStore } from '../store/useUiStore'
@@ -224,6 +225,7 @@ const ConnectionPanel: React.FC = () => {
     requestConnection,
     setConnection,
     clearConnection,
+    clearConnectionPair,
     setSelectedNodeId,
   } = useUiStore()
 
@@ -288,6 +290,16 @@ const ConnectionPanel: React.FC = () => {
             className="rounded p-1 text-gray-400 hover:bg-gray-600 hover:text-white disabled:opacity-40"
           >
             <ArrowRightLeft className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            aria-label="清除关联"
+            title="清除这两篇论文与检索结果"
+            onClick={clearConnectionPair}
+            disabled={!fromId && !toId && !connection}
+            className="rounded p-1 text-gray-400 hover:bg-gray-600 hover:text-white disabled:opacity-40"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"

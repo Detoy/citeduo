@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the batch shot for the first release still carried the pre-rename title in its header, so
   the README and the deployed `og:image` were showing the wrong name.
 
+### Fixed
+
+- **A forgotten two-paper relation now stays forgotten**: the relation panel has a 清除关联
+  button (and the graph's node menu a 清除关联论文 item) that drops both endpoints as well as
+  the answer. The pair lives in the URL as `?from`/`?to`, so the old "clear the path" action
+  left a refresh free to re-open the panel and re-run the crawl; changing one endpoint also
+  drops the previous answer now, instead of leaving a stale path under the new names.
+
 ## [0.1.0] - 2026-10-09
 
 This is the first tagged release. It covers the whole project to date, so the entries
